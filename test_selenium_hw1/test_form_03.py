@@ -77,7 +77,7 @@ def test_form02():  #тест с невалидным значением для 
         result_box = driver.find_element(By.ID, "output")
 
         # Проверяем, что в блоке результата появился введенный текст
-        assert "@" not in result_box.text
+        assert "Email" not in result_box.text
         print("Тест успешно пройден!")
 
     finally:
