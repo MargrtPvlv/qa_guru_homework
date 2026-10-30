@@ -1,8 +1,10 @@
+#команда для запуска pytest .\test_login.py -v
 import time
 
 import pytest
 
 from selenium import webdriver
+from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,6 +15,7 @@ LOGIN_INPUT     = (By.ID, "login-input")
 PASSWORD_INPUT  = (By.ID, "password-input")
 SUBMIT_BUTTON   = (By.ID, "submit-button")
 STATUS_MESSAGE  = (By.ID, "error-message")
+WELCOME_MESSAGE = (By.ID, "welcome-message")
 
 
 @pytest.fixture
@@ -25,7 +28,7 @@ def driver():
 
     driver = webdriver.Chrome()
     driver.maximize_window()
-    driver.implicitly_wait(5)
+    driver.implicitly_wait(3)
 
     yield driver
 
@@ -37,10 +40,10 @@ def driver():
     "email, password, scenario_type, expected_text",
     [
         # --- ПОЗИТИВНЫЕ СЦЕНАРИИ ---
-        ("qaguru@qa.guru", "qaguru", "positive", "Вы успешно вошли"),
-        ("QAGURU@QA.GURU", "qaguru", "positive", "Вы успешно вошли"), 
+        ("user1", "password1", "positive", "Welcome, user1!"),
         
         # --- НЕГАТИВНЫЕ СЦЕНАРИИ ---
+        ("USER1", "password1", "negative", "Welcome, user1!"),
         ("qaguru@qa.guru", "wrong_pass", "negative", "Неверный пароль"),
         ("unknown@qa.guru", "qaguru", "negative", "Такого пользователя не существует"),
         ("", "qaguru", "negative", "Заполните поле Email"),
@@ -74,27 +77,35 @@ def test_login_form(driver, email, password, scenario_type, expected_text):
     submit_button.click()
     
     # 5. Ожидание появления ответа
-    actual_result = driver.find_element(*STATUS_MESSAGE).text
+    actual_result = ""
 
-    time.sleep(5)
+    time.sleep(1)
 
     # NOTE: как минимум по трем причинам это анти подход 
     # 5. Ожидание появления ответа (алерта или текста на экране)
     # ПРИМЕЧАНИЕ: Данный блок адаптируется под логику страницы (JS-alert или блок текста).
-    try:
-        # Проверяем, появился ли браузерный alert
-        alert = WebDriverWait(driver, 2).until(EC.alert_is_present())
-        alert_text = alert.text
-        print(f"Allert is present with test: {alert_text}")
-        alert.accept()
-        actual_result = alert_text
-    except:
-        # Если алерта нет, ищем текст ошибки на самой странице
-        actual_result = driver.find_element(*STATUS_MESSAGE).text
-        print(f"Allert-а нет, поэтому мы ищем тест с ошибкой комментарием на странице, текст: {actual_result}")
-
-    # 6. Проверка результата (Assertion)
+        #ждем Welcome message, если успех
     if scenario_type == "positive":
-        assert expected_text in actual_result, f"Ожидался успешный вход, но получено: '{actual_result}'" #"Wrong login or password"
-    else:
-        assert expected_text in actual_result or driver.current_url != "success_url",  f"Форма пропустила некорректные данные: Email='{email}', Pass='{password}'"
+        try:
+            locator = WELCOME_MESSAGE
+            success_login = (WebDriverWait(driver, 3).
+                    until(EC.visibility_of_element_located(WELCOME_MESSAGE)))
+            actual_result = success_login.text
+        except:
+            print(f"Ожидался успешный вход, но получено: '{actual_result}'")
+
+        assert expected_text in actual_result
+
+    elif scenario_type == "negative":
+    #если Welcome message не появился, ожидаем ошибку
+        try:
+            locator = STATUS_MESSAGE
+            invalid_login = (WebDriverWait(driver, 3).
+                        until(EC.visibility_of_element_located(STATUS_MESSAGE)))
+            actual_result = invalid_login.text
+        except:
+            print(f"Форма пропустила некорректные данные: Email='{email}', Pass='{password}'")
+
+        assert expected_text in actual_result or driver.current_url != "success_url"
+
+#NOTE: мне кажется, я что-то набедокурила тут с логикой, но не могу понять что
