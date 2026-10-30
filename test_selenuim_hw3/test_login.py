@@ -108,5 +108,3 @@ def test_login_form(driver, email, password, scenario_type, expected_text):
         assert expected_text in actual_result or driver.current_url != "success_url"
 
 #NOTE: мне кажется, я что-то набедокурила тут с логикой, но не могу понять что
-#
-#####
